@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 use std::mem;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use once_cell::sync::Lazy;
-
 use crate::device::WiimoteDevice;
-use crate::native::{wiimotes_scan, wiimotes_scan_cleanup, NativeWiimote};
+use crate::native::{wiimotes_scan, NativeWiimote};
 
 type MutexWiimoteDevice = Arc<Mutex<WiimoteDevice>>;
 
@@ -19,44 +18,19 @@ pub struct WiimoteManager {
 }
 
 impl WiimoteManager {
-    /// Get the Wii remote manager instance.
-    pub fn get_instance() -> Arc<Mutex<Self>> {
-        static mut SINGLETON: Lazy<Arc<Mutex<WiimoteManager>>> =
-            Lazy::new(|| WiimoteManager::new_with_interval(Duration::from_millis(500)));
-        unsafe { SINGLETON.clone() }
+    pub fn new() -> Arc<Mutex<Self>> {
+        Self::new_with_interval(Duration::from_millis(500))
     }
-
-    /// Cleanup the Wii remote manager instance and disconnect all Wii remotes.
-    pub fn cleanup() {
-        {
-            let manager = Self::get_instance();
-            let mut manager = match manager.lock() {
-                Ok(m) => m,
-                Err(m) => m.into_inner(),
-            };
-            manager.seen_devices.clear();
+    
+    pub fn new_with_interval(scan_interval: Duration) -> Arc<Mutex<Self>> {
+        // Make sure only one manager exists at a time
+        static WIIMOTE_MANAGER_INITIALIZED: AtomicBool = AtomicBool::new(false);
+        
+        let prev_initialized = WIIMOTE_MANAGER_INITIALIZED.swap(true, Ordering::SeqCst);
+        if prev_initialized {
+            panic!("Several WiimoteManagers created in the same application!");
         }
-        wiimotes_scan_cleanup();
-    }
-
-    /// Set the interval at which the manager scans for Wii remotes.
-    pub fn set_scan_interval(&mut self, scan_interval: Duration) {
-        self.scan_interval = scan_interval;
-    }
-
-    /// Collection of Wii remotes that are connected or have been connected previously.
-    #[must_use]
-    pub fn seen_devices(&self) -> Vec<MutexWiimoteDevice> {
-        self.seen_devices.values().map(Arc::clone).collect()
-    }
-
-    /// Receiver of newly connected Wii remotes.
-    #[must_use]
-    pub fn new_devices_receiver(&mut self) -> Option<calloop::channel::Channel<MutexWiimoteDevice>> {
-        mem::take(&mut self.new_devices_receiver)
-    }
-
-    fn new_with_interval(scan_interval: Duration) -> Arc<Mutex<Self>> {
+        
         let (new_devices_sender, new_devices_receiver) = calloop::channel::channel();
 
         let manager = Arc::new(Mutex::new(Self {
@@ -94,6 +68,23 @@ impl WiimoteManager {
             .expect("Failed to spawn Wii remote scan thread");
 
         manager
+    }
+
+    /// Set the interval at which the manager scans for Wii remotes.
+    pub fn set_scan_interval(&mut self, scan_interval: Duration) {
+        self.scan_interval = scan_interval;
+    }
+
+    /// Collection of Wii remotes that are connected or have been connected previously.
+    #[must_use]
+    pub fn seen_devices(&self) -> Vec<MutexWiimoteDevice> {
+        self.seen_devices.values().map(Arc::clone).collect()
+    }
+
+    /// Receiver of newly connected Wii remotes.
+    #[must_use]
+    pub fn new_devices_receiver(&mut self) -> Option<calloop::channel::Channel<MutexWiimoteDevice>> {
+        mem::take(&mut self.new_devices_receiver)
     }
 
     /// Scan for connected Wii remotes.
