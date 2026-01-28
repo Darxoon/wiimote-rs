@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -14,7 +15,7 @@ type MutexWiimoteDevice = Arc<Mutex<WiimoteDevice>>;
 pub struct WiimoteManager {
     seen_devices: HashMap<String, MutexWiimoteDevice>,
     scan_interval: Duration,
-    new_devices_receiver: crossbeam_channel::Receiver<MutexWiimoteDevice>,
+    new_devices_receiver: Option<calloop::channel::Channel<MutexWiimoteDevice>>,
 }
 
 impl WiimoteManager {
@@ -51,17 +52,17 @@ impl WiimoteManager {
 
     /// Receiver of newly connected Wii remotes.
     #[must_use]
-    pub fn new_devices_receiver(&self) -> crossbeam_channel::Receiver<MutexWiimoteDevice> {
-        self.new_devices_receiver.clone()
+    pub fn new_devices_receiver(&mut self) -> Option<calloop::channel::Channel<MutexWiimoteDevice>> {
+        mem::take(&mut self.new_devices_receiver)
     }
 
     fn new_with_interval(scan_interval: Duration) -> Arc<Mutex<Self>> {
-        let (new_devices_sender, new_devices_receiver) = crossbeam_channel::unbounded();
+        let (new_devices_sender, new_devices_receiver) = calloop::channel::channel();
 
         let manager = Arc::new(Mutex::new(Self {
             seen_devices: HashMap::new(),
             scan_interval,
-            new_devices_receiver,
+            new_devices_receiver: Some(new_devices_receiver),
         }));
 
         let weak_manager = Arc::downgrade(&manager);
