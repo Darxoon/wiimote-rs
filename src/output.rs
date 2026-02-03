@@ -77,11 +77,15 @@ pub enum OutputReport {
     /// Enable or disable the IR camera (first step of enable sequence).
     ///
     /// WiiBrew Documentation: <https://www.wiibrew.org/wiki/Wiimote#IR_Camera>
-    IrCameraEnable(bool),
+    IrCameraEnable {
+        enable: bool,
+    },
     /// Enable or disable the built-in speaker.
     ///
     /// WiiBrew Documentation: <https://www.wiibrew.org/wiki/Wiimote#Speaker>
-    SpeakerEnable(bool),
+    SpeakerEnable {
+        enable: bool,
+    },
     /// Request a status input report from the Wii remote.
     ///
     /// WiiBrew Documentation: <https://www.wiibrew.org/wiki/Wiimote#0x20:_Status>
@@ -107,7 +111,9 @@ pub enum OutputReport {
     /// Second step of IR camera enable sequence.
     ///
     /// WiiBrew Documentation: <https://www.wiibrew.org/wiki/Wiimote#IR_Camera>
-    IrCameraEnable2(bool),
+    IrCameraEnable2 {
+        enable: bool,
+    },
 }
 
 impl OutputReport {
@@ -145,12 +151,12 @@ impl OutputReport {
                 buffer[2] = mode.mode;
                 3
             }
-            Self::IrCameraEnable(enable) => {
+            Self::IrCameraEnable { enable } => {
                 buffer[0] = IR_CAMERA_ENABLE_ID;
                 buffer[1] = if *enable { 0x04 } else { 0x00 };
                 2
             }
-            Self::SpeakerEnable(enable) => {
+            Self::SpeakerEnable { enable } => {
                 buffer[0] = SPEAKER_ENABLE_ID;
                 buffer[1] = if *enable { 0x04 } else { 0x00 };
                 2
@@ -195,7 +201,7 @@ impl OutputReport {
                 buffer[1] = if *mute { 0x04 } else { 0x00 };
                 2
             }
-            Self::IrCameraEnable2(enable) => {
+            Self::IrCameraEnable2 { enable } => {
                 buffer[0] = IR_CAMERA_ENABLE_2_ID;
                 buffer[1] = if *enable { 0x04 } else { 0x00 };
                 2
