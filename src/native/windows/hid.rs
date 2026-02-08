@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::{iter, mem};
+use std::sync::LazyLock;
 
-use once_cell::sync::Lazy;
 use windows::core::PCWSTR;
 use windows::Win32::Devices::DeviceAndDriverInstallation::{
     CM_Get_Device_Interface_ListW, CM_Get_Device_Interface_List_SizeW,
@@ -99,7 +99,7 @@ pub(super) unsafe fn enumerate_wiimote_hid_devices<F>(mut callback: F) -> Result
 where
     F: FnMut(&DeviceInfo, &str),
 {
-    static mut UNRELATED_DEVICES: Lazy<HashSet<String>> = Lazy::new(HashSet::new);
+    static mut UNRELATED_DEVICES: LazyLock<HashSet<String>> = LazyLock::new(HashSet::new);
 
     let hid_id = HidD_GetHidGuid();
 

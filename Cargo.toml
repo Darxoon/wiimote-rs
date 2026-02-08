@@ -11,10 +11,9 @@ exclude = ["/.github"]
 
 [dependencies]
 bitflags = "2.4"
-calloop = "0.14.3"
 crc32fast = "1.3"
-crossbeam-channel = "0.5"
-once_cell = "1.19.0"
+crossbeam-utils = "0.8.21"
+futures-channel = "0.3.31"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 nix = "0.28.0"

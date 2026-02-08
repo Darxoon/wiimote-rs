@@ -2,9 +2,8 @@ mod bluetooth;
 mod hid;
 
 use std::collections::HashSet;
-use std::sync::Mutex;
+use std::sync::{Mutex, LazyLock};
 
-use once_cell::sync::Lazy;
 use windows::Win32::Devices::HumanInterfaceDevice::HIDP_CAPS;
 use windows::Win32::Foundation::{
     CloseHandle, GetLastError, ERROR_IO_PENDING, GENERIC_READ, GENERIC_WRITE, HANDLE, WAIT_FAILED,
@@ -20,8 +19,8 @@ use self::hid::{enumerate_wiimote_hid_devices, open_wiimote_device};
 
 use super::NativeWiimote;
 
-static mut WIIMOTES_HANDLED: Lazy<Mutex<HashSet<String>>> =
-    Lazy::new(|| Mutex::new(HashSet::new()));
+static mut WIIMOTES_HANDLED: LazyLock<Mutex<HashSet<String>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
 
 unsafe fn from_wstring(wstr: &[u16]) -> String {
     if wstr.is_empty() {
